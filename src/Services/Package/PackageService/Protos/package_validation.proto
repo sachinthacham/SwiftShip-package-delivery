@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option csharp_namespace = "PackageService.Contracts.Grpc";
+
+package packagevalidation;
+
+service PackageValidationGrpc {
+  rpc CheckPackageExists (PackageExistsRequest) returns (PackageExistsReply);
+}
+
+message PackageExistsRequest {
+  string package_id = 1;
+}
+
+message PackageExistsReply {
+  bool exists = 1;
+}
