@@ -1,0 +1,48 @@
+# Secrets and env
+.env
+.env.*
+!.env.example
+
+# IDE/editor
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/TestResults/
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+*.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# NuGet
+*.nupkg
+packages/
+
+# Local DB / tool artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+# Coverage
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Docker local overrides
+docker-compose.override.yml
