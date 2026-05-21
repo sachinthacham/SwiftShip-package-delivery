@@ -1,0 +1,196 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pds-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: ${SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - pds-network
+
+  # mssql-tools:latest does not ship sqlcmd under /opt/mssql-tools18 (exit 127).
+  # Reuse the server image as a one-shot client: same sqlcmd path as the sqlserver healthcheck.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: ${SA_PASSWORD}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$${SA_PASSWORD}" -C -Q
+        "IF DB_ID('package-delivery-identity') IS NULL CREATE DATABASE [package-delivery-identity];
+        IF DB_ID('package-delivery-package') IS NULL CREATE DATABASE [package-delivery-package];
+        IF DB_ID('package-delivery-shipment') IS NULL CREATE DATABASE [package-delivery-shipment];
+        IF DB_ID('package-delivery-tracking') IS NULL CREATE DATABASE [package-delivery-tracking];
+        IF DB_ID('package-delivery-driver') IS NULL CREATE DATABASE [package-delivery-driver];"
+    restart: "no"
+    networks:
+      - pds-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pds-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - pds-network
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/IdentityService/Dockerfile
+    container_name: pds-identity
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__IdentityDb: Server=sqlserver;Database=package-delivery-identity;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    ports:
+      - "5001:5001"
+    networks:
+      - pds-network
+
+  package-service:
+    build:
+      context: .
+      dockerfile: src/Services/Package/PackageService/Dockerfile
+    container_name: pds-package
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__PackageDb: Server=sqlserver;Database=package-delivery-package;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    ports:
+      - "5002:5002"
+      - "5006:5006"
+    networks:
+      - pds-network
+
+  tracking-service:
+    build:
+      context: .
+      dockerfile: src/Services/Tracking/TrackingService/Dockerfile
+    container_name: pds-tracking
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__TrackingDb: Server=sqlserver;Database=package-delivery-tracking;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: ${RABBITMQ_USERNAME}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      RabbitMq__Queues__ShipmentCreated: shipment.created
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    ports:
+      - "5004:5004"
+    networks:
+      - pds-network
+
+  shipment-service:
+    build:
+      context: .
+      dockerfile: src/Services/Shipment/ShipmentService/Dockerfile
+    container_name: pds-shipment
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      package-service:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__ShipmentDb: Server=sqlserver;Database=package-delivery-shipment;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      Services__PackageGrpcUrl: http://package-service:5006
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Username: ${RABBITMQ_USERNAME}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD}
+      RabbitMq__Queues__ShipmentCreated: shipment.created
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    ports:
+      - "5003:5003"
+    networks:
+      - pds-network
+
+  driver-service:
+    build:
+      context: .
+      dockerfile: src/Services/Driver/DriverService/Dockerfile
+    container_name: pds-driver
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ConnectionStrings__DriverDb: Server=sqlserver;Database=package-delivery-driver;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+    ports:
+      - "5005:5005"
+    networks:
+      - pds-network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/ApiGateway/Dockerfile
+    container_name: pds-gateway
+    depends_on:
+      identity-service:
+        condition: service_started
+      package-service:
+        condition: service_started
+      shipment-service:
+        condition: service_started
+      tracking-service:
+        condition: service_started
+      driver-service:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+    ports:
+      - "5000:5000"
+    networks:
+      - pds-network
+
+volumes:
+  sqlserver_data:
+
+networks:
+  pds-network:
+    driver: bridge
