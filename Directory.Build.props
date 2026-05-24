@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Retry failed NuGet downloads (e.g. EF Core analyzer timeout in Docker) -->
+    <RestoreRetryCount>8</RestoreRetryCount>
+    <RestoreRetryDelay>8000</RestoreRetryDelay>
+  </PropertyGroup>
+</Project>
