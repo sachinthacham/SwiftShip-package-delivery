@@ -52,7 +52,4 @@ Example:
 
 - `GET http://localhost:5000/package/api/packages`
 
-## Notes About ASP.NET 10
 
-Your machine currently has .NET 8 SDK installed. This starter is built on `net8.0` so it runs now.
-When .NET 10 SDK is installed, you can migrate by changing each project `TargetFramework` to `net10.0`.
