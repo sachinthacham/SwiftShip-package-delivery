@@ -21,6 +21,17 @@ public class PackageValidationGrpcService : PackageValidationGrpc.PackageValidat
         }
 
         var package = await _packageService.GetByIdAsync(packageId);
-        return new PackageExistsReply { Exists = package is not null };
+        if (package is null)
+        {
+            return new PackageExistsReply { Exists = false };
+        }
+
+        return new PackageExistsReply
+        {
+            Exists = true,
+            Weight = (double)package.Weight,
+            DeliveryType = package.DeliveryType,
+            SenderId = package.SenderId.ToString()
+        };
     }
 }

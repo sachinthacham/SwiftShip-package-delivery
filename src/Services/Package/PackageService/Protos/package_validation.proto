@@ -14,4 +14,7 @@ message PackageExistsRequest {
 
 message PackageExistsReply {
   bool exists = 1;
+  double weight = 2;
+  string delivery_type = 3;
+  string sender_id = 4;
 }
