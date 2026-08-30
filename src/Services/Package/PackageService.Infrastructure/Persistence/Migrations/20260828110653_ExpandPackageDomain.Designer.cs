@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PackageService.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using PackageService.Infrastructure.Persistence;
 namespace PackageService.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PackageDbContext))]
-    partial class PackageDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828110653_ExpandPackageDomain")]
+    partial class ExpandPackageDomain
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
