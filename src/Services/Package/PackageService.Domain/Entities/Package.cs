@@ -1,3 +1,6 @@
+using PackageService.Domain.Enums;
+using PackageService.Domain.ValueObjects;
+
 namespace PackageService.Domain.Entities;
 
 public class Package
@@ -8,7 +11,7 @@ public class Package
 
     public string ReceiverName { get; set; } = default!;
     public string ReceiverPhone { get; set; } = default!;
-    public string ReceiverAddress { get; set; } = default!;
+    public Address ReceiverAddress { get; set; } = default!;
 
     public decimal Weight { get; set; }
 
@@ -16,7 +19,10 @@ public class Package
     public decimal Width { get; set; }
     public decimal Height { get; set; }
 
-    public string Status { get; set; } = "Created";
+    public decimal DeclaredValue { get; set; }
+    public DeliveryType DeliveryType { get; set; }
+
+    public PackageStatus Status { get; set; } = PackageStatus.Created;
 
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
