@@ -5,11 +5,13 @@ public record PackageResponse(
     Guid SenderId,
     string ReceiverName,
     string ReceiverPhone,
-    string ReceiverAddress,
+    AddressDto ReceiverAddress,
     decimal Weight,
     decimal Length,
     decimal Width,
     decimal Height,
+    decimal DeclaredValue,
+    string DeliveryType,
     string Status,
     DateTime CreatedAt
 );
