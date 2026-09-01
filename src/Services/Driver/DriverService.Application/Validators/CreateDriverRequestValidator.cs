@@ -7,6 +7,9 @@ public class CreateDriverRequestValidator : AbstractValidator<CreateDriverReques
 {
     public CreateDriverRequestValidator()
     {
+        RuleFor(x => x.UserId)
+            .NotEmpty();
+
         RuleFor(x => x.Name)
             .NotEmpty()
             .MaximumLength(150);
@@ -14,5 +17,8 @@ public class CreateDriverRequestValidator : AbstractValidator<CreateDriverReques
         RuleFor(x => x.VehicleNumber)
             .NotEmpty()
             .MaximumLength(50);
+
+        RuleFor(x => x.VehicleType)
+            .IsInEnum();
     }
 }
