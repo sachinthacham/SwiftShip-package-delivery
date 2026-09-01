@@ -10,6 +10,8 @@ public class User
     public string FirstName { get; set; } = default!;
     public string LastName { get; set; } = default!;
 
+    public string? PhoneNumber { get; set; }
+
     public string Role { get; set; } = "Customer";
 
     public DateTime CreatedAt { get; set; }
