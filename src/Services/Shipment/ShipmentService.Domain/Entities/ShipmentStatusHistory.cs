@@ -1,3 +1,5 @@
+using ShipmentService.Domain.Enums;
+
 namespace ShipmentService.Domain.Entities;
 
 public class ShipmentStatusHistory
@@ -6,7 +8,7 @@ public class ShipmentStatusHistory
 
     public Guid ShipmentId { get; set; }
 
-    public string Status { get; set; } = default!;
+    public ShipmentStatus Status { get; set; }
     public string Location { get; set; } = default!;
 
     public DateTime Timestamp { get; set; }
