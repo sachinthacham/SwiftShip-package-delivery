@@ -17,8 +17,10 @@ public class DriverDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).IsRequired();
             entity.Property(x => x.VehicleNumber).IsRequired();
+            entity.Property(x => x.VehicleType).HasConversion<string>().HasMaxLength(20);
             entity.HasIndex(x => x.VehicleNumber).IsUnique();
             entity.HasIndex(x => x.IsAvailable);
+            entity.HasIndex(x => x.UserId).IsUnique();
         });
     }
 }
