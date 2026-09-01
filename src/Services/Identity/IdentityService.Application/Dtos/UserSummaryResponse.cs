@@ -1,9 +1,11 @@
 namespace IdentityService.Application.Dtos;
-public record RegisterRequest(
+
+public record UserSummaryResponse(
+    Guid Id,
     string Email,
-    string Password,
     string FirstName,
     string LastName,
-    string Role = "Customer",
+    string Role,
+    DateTime CreatedAt,
     string? PhoneNumber = null
 );
