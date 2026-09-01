@@ -1,3 +1,4 @@
+using BuildingBlocks.Common;
 using IdentityService.Application.Abstractions;
 using IdentityService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -23,9 +24,26 @@ public class UserRepository : IUserRepository
         return _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
 
+    public Task<User?> GetByIdAsync(Guid id)
+    {
+        return _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+    }
+
     public async Task AddAsync(User user)
     {
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(User user)
+    {
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public Task<PaginatedList<User>> GetPagedAsync(int pageNumber, int pageSize)
+    {
+        var query = _dbContext.Users.OrderBy(u => u.CreatedAt).AsQueryable();
+        return PaginatedList<User>.CreateAsync(query, pageNumber, pageSize);
     }
 }

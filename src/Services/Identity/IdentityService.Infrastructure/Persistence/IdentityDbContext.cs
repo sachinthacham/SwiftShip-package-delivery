@@ -10,11 +10,15 @@ public class IdentityDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<SavedAddress> SavedAddresses => Set<SavedAddress>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        modelBuilder.Entity<SavedAddress>()
+            .HasIndex(a => a.UserId);
     }
 }
