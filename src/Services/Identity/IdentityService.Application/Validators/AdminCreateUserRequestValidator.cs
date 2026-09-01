@@ -4,9 +4,9 @@ using IdentityService.Application.Dtos;
 
 namespace IdentityService.Application.Validators;
 
-public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
+public class AdminCreateUserRequestValidator : AbstractValidator<AdminCreateUserRequest>
 {
-    public RegisterRequestValidator()
+    public AdminCreateUserRequestValidator()
     {
         RuleFor(x => x.Email)
             .NotEmpty()
@@ -28,7 +28,7 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 
         RuleFor(x => x.Role)
             .NotEmpty()
-            .Must(role => Roles.SelfRegisterable.Contains(role))
-            .WithMessage($"Role must be one of: {string.Join(", ", Roles.SelfRegisterable)}. Dispatcher and Admin accounts must be provisioned separately.");
+            .Must(role => Roles.All.Contains(role))
+            .WithMessage($"Role must be one of: {string.Join(", ", Roles.All)}.");
     }
 }
