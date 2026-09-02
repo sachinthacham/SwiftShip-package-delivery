@@ -12,7 +12,7 @@ public class PackageServiceClient : IPackageValidationClient
 {
     private readonly PackageValidationGrpc.PackageValidationGrpcClient _packageValidationClient;
     private readonly ILogger<PackageServiceClient> _logger;
-    private readonly ResiliencePipeline<bool> _resiliencePipeline;
+    private readonly ResiliencePipeline<PackageExistsReply> _resiliencePipeline;
 
     public PackageServiceClient(
         PackageValidationGrpc.PackageValidationGrpcClient packageValidationClient,
@@ -21,13 +21,13 @@ public class PackageServiceClient : IPackageValidationClient
         _packageValidationClient = packageValidationClient;
         _logger = logger;
 
-        var predicate = new PredicateBuilder<bool>()
+        var predicate = new PredicateBuilder<PackageExistsReply>()
             .Handle<RpcException>()
             .Handle<HttpRequestException>()
             .Handle<TimeoutException>();
 
-        _resiliencePipeline = new ResiliencePipelineBuilder<bool>()
-            .AddRetry(new RetryStrategyOptions<bool>
+        _resiliencePipeline = new ResiliencePipelineBuilder<PackageExistsReply>()
+            .AddRetry(new RetryStrategyOptions<PackageExistsReply>
             {
                 ShouldHandle = predicate,
                 MaxRetryAttempts = 3,
@@ -42,7 +42,7 @@ public class PackageServiceClient : IPackageValidationClient
                     return default;
                 }
             })
-            .AddCircuitBreaker(new CircuitBreakerStrategyOptions<bool>
+            .AddCircuitBreaker(new CircuitBreakerStrategyOptions<PackageExistsReply>
             {
                 ShouldHandle = predicate,
                 FailureRatio = 0.5,
@@ -68,15 +68,17 @@ public class PackageServiceClient : IPackageValidationClient
             .Build();
     }
 
-    public async Task<bool> PackageExists(Guid packageId, CancellationToken cancellationToken = default)
+    public async Task<PackageValidationResult?> GetPackageAsync(Guid packageId, CancellationToken cancellationToken = default)
     {
-        return await _resiliencePipeline.ExecuteAsync(async ct =>
+        var response = await _resiliencePipeline.ExecuteAsync(async ct =>
         {
-            var response = await _packageValidationClient.CheckPackageExistsAsync(
+            return await _packageValidationClient.CheckPackageExistsAsync(
                 new PackageExistsRequest { PackageId = packageId.ToString() },
                 cancellationToken: ct);
-
-            return response.Exists;
         }, cancellationToken);
+
+        return response.Exists
+            ? new PackageValidationResult((decimal)response.Weight, response.DeliveryType, Guid.Parse(response.SenderId))
+            : null;
     }
 }
