@@ -77,14 +77,49 @@ public sealed class RabbitMqShipmentEventPublisher : IShipmentEventPublisher
 
     public Task PublishShipmentCreatedAsync(ShipmentCreatedEvent shipmentCreatedEvent, CancellationToken cancellationToken = default)
     {
-        return PublishAsync(shipmentCreatedEvent, cancellationToken);
+        return PublishAsync(
+            nameof(ShipmentCreatedEvent),
+            shipmentCreatedEvent.ShipmentId.ToString(),
+            shipmentCreatedEvent,
+            queueConfigKey: "RabbitMq:Queues:ShipmentCreated",
+            defaultQueueName: "shipment.created",
+            cancellationToken);
     }
 
-    private async Task PublishAsync(ShipmentCreatedEvent shipmentCreatedEvent, CancellationToken cancellationToken)
+    public Task PublishShipmentStatusChangedAsync(ShipmentStatusChangedEvent shipmentStatusChangedEvent, CancellationToken cancellationToken = default)
     {
-        const string eventType = nameof(ShipmentCreatedEvent);
-        var eventKey = shipmentCreatedEvent.ShipmentId.ToString();
-        var payload = JsonSerializer.Serialize(shipmentCreatedEvent);
+        // Keyed by shipment id + status so the same transition is never double-published, while distinct transitions for the same shipment each get their own outbox row.
+        var eventKey = $"{shipmentStatusChangedEvent.ShipmentId}:{shipmentStatusChangedEvent.Status}";
+
+        return PublishAsync(
+            nameof(ShipmentStatusChangedEvent),
+            eventKey,
+            shipmentStatusChangedEvent,
+            queueConfigKey: "RabbitMq:Queues:ShipmentStatusChanged",
+            defaultQueueName: "shipment.status-changed",
+            cancellationToken);
+    }
+
+    public Task PublishShipmentSlaBreachedAsync(ShipmentSlaBreachedEvent shipmentSlaBreachedEvent, CancellationToken cancellationToken = default)
+    {
+        return PublishAsync(
+            nameof(ShipmentSlaBreachedEvent),
+            shipmentSlaBreachedEvent.ShipmentId.ToString(),
+            shipmentSlaBreachedEvent,
+            queueConfigKey: "RabbitMq:Queues:ShipmentSlaBreached",
+            defaultQueueName: "shipment.sla-breached",
+            cancellationToken);
+    }
+
+    private async Task PublishAsync<TEvent>(
+        string eventType,
+        string eventKey,
+        TEvent evt,
+        string queueConfigKey,
+        string defaultQueueName,
+        CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Serialize(evt);
 
         var outboundEvent = await _dbContext.OutboundIntegrationEvents
             .FirstOrDefaultAsync(
@@ -126,12 +161,13 @@ public sealed class RabbitMqShipmentEventPublisher : IShipmentEventPublisher
             return;
         }
 
+        var queue = _configuration[queueConfigKey] ?? defaultQueueName;
+
         await _resiliencePipeline.ExecuteAsync(async ct =>
         {
             var host = _configuration["RabbitMq:Host"] ?? "localhost";
             var username = _configuration["RabbitMq:Username"] ?? "guest";
             var password = _configuration["RabbitMq:Password"] ?? "guest";
-            var queue = _configuration["RabbitMq:Queues:ShipmentCreated"] ?? "shipment.created";
 
             var factory = new ConnectionFactory
             {

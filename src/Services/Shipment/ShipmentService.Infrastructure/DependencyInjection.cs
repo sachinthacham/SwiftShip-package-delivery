@@ -5,6 +5,7 @@ using ShipmentService.Application.Abstractions;
 using ShipmentService.Domain.Abstractions;
 using ShipmentService.Infrastructure.Clients;
 using ShipmentService.Infrastructure.Messaging;
+using ShipmentService.Infrastructure.Payments;
 using ShipmentService.Infrastructure.Persistence;
 using ShipmentService.Infrastructure.Repositories;
 
@@ -25,6 +26,16 @@ public static class DependencyInjection
         });
         services.AddScoped<IPackageValidationClient, PackageServiceClient>();
         services.AddScoped<IShipmentEventPublisher, RabbitMqShipmentEventPublisher>();
+        services.AddHttpClient<IDriverAvailabilityClient, DriverServiceClient>();
+
+        if (string.IsNullOrWhiteSpace(configuration["Stripe:SecretKey"]))
+        {
+            services.AddScoped<IPaymentGateway, NullPaymentGateway>();
+        }
+        else
+        {
+            services.AddScoped<IPaymentGateway, StripePaymentGateway>();
+        }
 
         return services;
     }
