@@ -68,6 +68,9 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
+      Identity__SeedAdmin__Email: ${SEED_ADMIN_EMAIL}
+      Identity__SeedAdmin__Password: ${SEED_ADMIN_PASSWORD}
+      Internal__ApiKey: ${INTERNAL_API_KEY}
     ports:
       - "5001:5001"
     networks:
@@ -103,6 +106,8 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+      identity-service:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__TrackingDb: Server=sqlserver;Database=package-delivery-tracking;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
@@ -110,9 +115,21 @@ services:
       RabbitMq__Username: ${RABBITMQ_USERNAME}
       RabbitMq__Password: ${RABBITMQ_PASSWORD}
       RabbitMq__Queues__ShipmentCreated: shipment.created
+      RabbitMq__Queues__ShipmentStatusChanged: shipment.status-changed
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
+      Services__IdentityBaseUrl: http://identity-service:5001
+      Internal__ApiKey: ${INTERNAL_API_KEY}
+      Smtp__Host: ${SMTP_HOST}
+      Smtp__Port: ${SMTP_PORT}
+      Smtp__Username: ${SMTP_USERNAME}
+      Smtp__Password: ${SMTP_PASSWORD}
+      Smtp__FromAddress: ${SMTP_FROM_ADDRESS}
+      Smtp__FromName: ${SMTP_FROM_NAME}
+      Twilio__AccountSid: ${TWILIO_ACCOUNT_SID}
+      Twilio__AuthToken: ${TWILIO_AUTH_TOKEN}
+      Twilio__FromPhoneNumber: ${TWILIO_FROM_PHONE_NUMBER}
     ports:
       - "5004:5004"
     networks:
@@ -130,17 +147,28 @@ services:
         condition: service_healthy
       package-service:
         condition: service_started
+      driver-service:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__ShipmentDb: Server=sqlserver;Database=package-delivery-shipment;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
       Services__PackageGrpcUrl: http://package-service:5006
+      Services__DriverBaseUrl: http://driver-service:5005
+      Internal__ApiKey: ${INTERNAL_API_KEY}
       RabbitMq__Host: rabbitmq
       RabbitMq__Username: ${RABBITMQ_USERNAME}
       RabbitMq__Password: ${RABBITMQ_PASSWORD}
       RabbitMq__Queues__ShipmentCreated: shipment.created
+      RabbitMq__Queues__ShipmentStatusChanged: shipment.status-changed
+      RabbitMq__Queues__ShipmentSlaBreached: shipment.sla-breached
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY}
+    volumes:
+      - shipment_uploads:/app/App_Data/uploads
     ports:
       - "5003:5003"
     networks:
@@ -160,6 +188,7 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
+      Internal__ApiKey: ${INTERNAL_API_KEY}
     ports:
       - "5005:5005"
     networks:
@@ -188,8 +217,22 @@ services:
     networks:
       - pds-network
 
+  frontend:
+    build:
+      context: package-delivery-web
+      dockerfile: Dockerfile
+    container_name: pds-frontend
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "4200:4200"
+    networks:
+      - pds-network
+
 volumes:
   sqlserver_data:
+  shipment_uploads:
 
 networks:
   pds-network:
