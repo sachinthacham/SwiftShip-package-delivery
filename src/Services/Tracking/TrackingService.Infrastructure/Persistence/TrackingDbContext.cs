@@ -19,8 +19,10 @@ public class TrackingDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Location).IsRequired();
             entity.Property(x => x.Status).IsRequired();
+            entity.Property(x => x.TrackingNumber).HasMaxLength(50);
             entity.HasIndex(x => x.PackageId);
             entity.HasIndex(x => x.TimestampUtc);
+            entity.HasIndex(x => x.TrackingNumber);
         });
 
         modelBuilder.Entity<ProcessedIntegrationEvent>(entity =>
