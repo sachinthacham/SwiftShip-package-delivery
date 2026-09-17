@@ -35,11 +35,19 @@ public class TrackingService : ITrackingService
         return history.Select(Map).ToList();
     }
 
+    public async Task<IReadOnlyList<TrackingResponse>> GetByTrackingNumberAsync(string trackingNumber, CancellationToken cancellationToken = default)
+    {
+        var history = await _trackingRepository.GetByTrackingNumberAsync(trackingNumber, cancellationToken);
+        return history.Select(Map).ToList();
+    }
+
     private static TrackingResponse Map(TrackingEvent trackingEvent)
     {
         return new TrackingResponse(
             trackingEvent.Id,
             trackingEvent.PackageId,
+            trackingEvent.ShipmentId,
+            trackingEvent.TrackingNumber,
             trackingEvent.Location,
             trackingEvent.Status,
             trackingEvent.TimestampUtc);
