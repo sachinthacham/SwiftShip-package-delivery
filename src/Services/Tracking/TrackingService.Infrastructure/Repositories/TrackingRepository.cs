@@ -28,4 +28,13 @@ public class TrackingRepository : ITrackingRepository
             .OrderByDescending(x => x.TimestampUtc)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<TrackingEvent>> GetByTrackingNumberAsync(string trackingNumber, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.TrackingEvents
+            .AsNoTracking()
+            .Where(x => x.TrackingNumber == trackingNumber)
+            .OrderByDescending(x => x.TimestampUtc)
+            .ToListAsync(cancellationToken);
+    }
 }
