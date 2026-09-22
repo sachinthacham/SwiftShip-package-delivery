@@ -1,6 +1,6 @@
-# Package Delivery System
+# SwiftShip
 
-A full-stack package delivery / courier platform: a .NET 8 microservices backend and an Angular 19 frontend.
+SwiftShip is a full-stack package delivery / courier platform: a .NET 8 microservices backend and an Angular 19 frontend.
 
 ## Architecture
 
@@ -48,17 +48,110 @@ Roles: `Customer`, `Courier`, `Dispatcher`, `Admin` (see `BuildingBlocks/Authori
 
 Core infrastructure (`src/app/core/`): typed HTTP services per backend, JWT interceptor with shared/deduplicated token-refresh-on-401, global error/loading interceptors, auth + role route guards, a SignalR wrapper, and models matching the backend DTOs exactly.
 
-## Running locally
+## Running locally with Docker (recommended)
 
-### Backend + databases + broker (Docker)
+The whole system — SQL Server, RabbitMQ, all five services, the gateway and the Angular frontend — runs from one `docker compose` command. No .NET SDK, Node or SQL Server install is needed on your machine.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine + Compose v2 (Linux), running.
+- About 6 GB of free RAM for Docker (SQL Server alone needs ~2 GB).
+- These ports free on your machine: `1433`, `4200`, `5000`–`5006`, `5672`, `15672`. If you already run SQL Server or RabbitMQ locally, stop them first.
+
+### 1. Create your `.env` file
+
+Copy the example file in the repo root:
 
 ```bash
-docker compose up --build
+# macOS / Linux / Git Bash
+cp .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
 
-This starts SQL Server, RabbitMQ, all five services, and the gateway. Copy `.env.example` to `.env` first and fill in real values for anything beyond local dev (`JWT_KEY` must be at least 32 characters — HS256's minimum). SMTP/Twilio/Stripe can all be left blank; each falls back to a safe no-op/logging mode.
+For local use the defaults work as-is. Values worth checking:
 
-### Backend only, without Docker
+| Variable | Notes |
+|---|---|
+| `SA_PASSWORD` | SQL Server `sa` password. Must meet SQL Server's complexity rules (8+ chars with upper, lower, digit and symbol), or the database container won't start. |
+| `JWT_KEY` | Must be at least 32 characters. |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | The admin account created on first start. You log in with these. |
+| `SMTP_*`, `TWILIO_*`, `STRIPE_*` | Optional. Leave blank: emails and SMS are written to the logs instead of sent, and online payment is turned off. |
+
+`.env` is git-ignored, so don't commit it.
+
+### 2. Build and start
+
+```bash
+docker compose up --build -d
+```
+
+The first run builds seven images and takes 5–15 minutes. Later runs start in under a minute.
+
+On startup, each service creates its own tables automatically (EF Core migrations run because docker-compose sets `Database__MigrateOnStartup=true`), and Identity creates the admin account from `.env`.
+
+### 3. Check that it's running
+
+```bash
+docker compose ps
+```
+
+Wait until `sqlserver` and `rabbitmq` show `healthy` and `db-init` shows `Exited (0)`. Then open:
+
+| What | URL |
+|---|---|
+| **Frontend** | http://localhost:4200 |
+| API gateway | http://localhost:5000 |
+| Swagger for each service | http://localhost:5001/swagger (Identity) up to http://localhost:5005/swagger (Driver) |
+| RabbitMQ management UI | http://localhost:15672 (log in with `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD`) |
+| SQL Server | `localhost,1433`, user `sa`, password `SA_PASSWORD` (e.g. from SSMS or Azure Data Studio) |
+
+Log in to the frontend with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`. From the admin portal you can create courier accounts, and customers can sign up from the register page.
+
+### 4. (Optional) Load demo data
+
+To explore the app with realistic data instead of empty screens, run the seed script while the stack is up (needs Node 22+):
+
+```bash
+node scripts/seed-demo-data.mjs
+```
+
+It calls the app's own APIs through the gateway, so the data is consistent across all five databases, and tracking events arrive through RabbitMQ just as they do in normal use. It creates:
+
+- 1 dispatcher, 5 couriers with driver profiles and live locations (4 on duty, 1 off duty), and 6 customers with saved addresses, all around Colombo.
+- 20 shipments across Sri Lanka that together cover every outcome: unassigned, assigned, picked up, in transit, out for delivery, delivered (plus one delivered on a second attempt), failed delivery, returned, and cancelled. The data also includes invoices in every payment state, customer ratings, delivery attempts and full tracking timelines.
+
+All demo accounts use the password `Demo_Passw0rd!`:
+
+| Role | Email |
+|---|---|
+| Dispatcher | `dispatcher@swiftship.local` |
+| Courier | `kasun.courier@swiftship.local` (also `tharindu`, `dilan`, `ruwan`, `isuru`) |
+| Customer | `amaya.customer@swiftship.local` (also `chamod`, `sanduni`, `pasindu`, `hiruni`, `yasiru`) |
+
+Re-running the script is safe: existing accounts are reused, and shipments are skipped if any already exist. Pass `--force` to add another batch. The script takes a minute or two, because it waits out the services' rate limit of 100 requests per minute.
+
+### Everyday commands
+
+```bash
+docker compose logs -f                    # follow logs from every container
+docker compose logs -f shipment-service   # follow one service
+docker compose up --build -d frontend     # rebuild and restart one service after a code change
+docker compose down                       # stop everything (your data is kept)
+docker compose down -v                    # stop and DELETE all data (database, uploads) for a clean start
+```
+
+### Troubleshooting
+
+- **`sqlserver` never becomes healthy.** Usually `SA_PASSWORD` is too weak. Fix it in `.env`, then run `docker compose down -v` and `docker compose up -d`. The `-v` matters: SQL Server keeps the first password it was started with in its data volume.
+- **"port is already allocated".** Something else is using that port. Stop it, or change the left-hand number of that `ports:` entry in `docker-compose.yml`.
+- **A service exits right after starting.** Run `docker compose logs <service-name>`. If the database was still starting, `docker compose up -d` starts it again, and migrations retry for about 50 seconds.
+- **The frontend loads but every request fails.** Check that `api-gateway` is running (`docker compose ps`). The browser talks to the gateway at `http://localhost:5000`.
+
+## Running without Docker (for development)
+
+### Backend
 
 ```bash
 dotnet build PackageDeliverySystem.sln
@@ -70,17 +163,17 @@ dotnet run --project src/Services/Driver/DriverService
 dotnet run --project src/ApiGateway/ApiGateway
 ```
 
-Each service needs its own SQL Server database reachable via its `ConnectionStrings` setting in `appsettings.Development.json`, and the same `Jwt:Key/Issuer/Audience` across all five (set via user-secrets or environment variables — the checked-in placeholder is intentionally not production-safe).
+Each service needs its own SQL Server database, reachable through the `ConnectionStrings` setting in `appsettings.Development.json`. All five services need the same `Jwt:Key`, `Jwt:Issuer` and `Jwt:Audience`, set with user-secrets or environment variables; the checked-in placeholder key is deliberately not safe for production. To have a service create its own tables, set `Database__MigrateOnStartup=true`, or run `dotnet ef database update` per service.
+
+A handy middle ground is to run only the infrastructure in Docker: `docker compose up -d sqlserver db-init rabbitmq`.
 
 ### Frontend
 
 ```bash
 cd package-delivery-web
 npm install
-npm start          # dev server on http://localhost:4200, proxies nothing — calls the gateway directly at http://localhost:5000
+npm start          # dev server on http://localhost:4200; calls the gateway directly at http://localhost:5000 (no proxy)
 ```
-
-Or as a container alongside everything else: `docker compose up --build frontend` (served via nginx on port 4200).
 
 ## Testing
 
@@ -97,6 +190,12 @@ npm test
 
 `.github/workflows/ci.yml` builds and tests the backend, builds and unit-tests the frontend, and (on push to `main`/`master`) builds all Docker images.
 
+## Deployment (Azure)
+
+`infra/main.bicep` provisions everything the system needs on Azure Container Apps (consumption plan, scale-to-zero) + Azure SQL (serverless, auto-pause) + Azure Static Web Apps (frontend, free tier). `.github/workflows/deploy.yml` builds and pushes all 6 images to ACR, applies EF Core migrations, re-applies the Bicep template with the new image tags, and deploys the frontend — triggered on every push to `main` via GitHub OIDC (no stored Azure credentials).
+
+First-time setup (provisioning the resource group, wiring GitHub OIDC, and the secrets `deploy.yml` expects) is a manual one-off — see the project's deployment notes for the exact `az` commands.
+
 ## Gateway route prefixes
 
 | Prefix | Target |
@@ -108,3 +207,9 @@ npm test
 | `/driver/*` | DriverService |
 
 Example: `GET http://localhost:5000/package/api/packages`. The frontend's `environment.apiBaseUrl` points at the gateway (`http://localhost:5000`); SignalR connects directly to `http://localhost:5000/tracking/hubs/tracking`.
+
+
+-----------login credentials-----------
+
+Email: admin@packagedelivery.local
+Password: Dev_Admin_Passw0rd!
