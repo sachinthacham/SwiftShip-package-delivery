@@ -2,6 +2,48 @@
 
 SwiftShip is a full-stack package delivery / courier platform: a .NET 8 microservices backend and an Angular 19 frontend.
 
+![SwiftShip landing page](package-delivery-web/public/screenshots/01-landing.png)
+
+## Screenshots
+
+The screenshots below show the app loaded with the [demo data](#4-optional-load-demo-data).
+
+### Public tracking
+
+| Guest tracking lookup | Sign in |
+|---|---|
+| ![Public tracking timeline](package-delivery-web/public/screenshots/02-public-tracking.png) | ![Login](package-delivery-web/public/screenshots/03-login.png) |
+
+### Customer portal
+
+| Dashboard | My shipments |
+|---|---|
+| ![Customer dashboard](package-delivery-web/public/screenshots/10-customer-dashboard.png) | ![Customer shipments](package-delivery-web/public/screenshots/11-customer-shipments.png) |
+| **Shipment detail: live timeline, route map, invoice, rating** | **Create shipment** |
+| ![Customer shipment detail](package-delivery-web/public/screenshots/12-customer-shipment-detail.png) | ![Create shipment](package-delivery-web/public/screenshots/13-customer-create-shipment.png) |
+| **Invoices** | **Saved addresses** |
+| ![Invoices](package-delivery-web/public/screenshots/14-customer-invoices.png) | ![Saved addresses](package-delivery-web/public/screenshots/15-customer-addresses.png) |
+
+### Courier portal
+
+| Dashboard | Assigned deliveries |
+|---|---|
+| ![Courier dashboard](package-delivery-web/public/screenshots/20-courier-dashboard.png) | ![Courier deliveries](package-delivery-web/public/screenshots/21-courier-deliveries.png) |
+| **Delivery detail: status updates and delivery attempts** | **Route map** |
+| ![Courier delivery detail](package-delivery-web/public/screenshots/22-courier-delivery-detail.png) | ![Courier route map](package-delivery-web/public/screenshots/23-courier-route-map.png) |
+
+### Admin / dispatcher portal
+
+| Dashboard | Dispatch board: manual and auto-assign |
+|---|---|
+| ![Admin dashboard](package-delivery-web/public/screenshots/30-admin-dashboard.png) | ![Dispatch board](package-delivery-web/public/screenshots/31-admin-dispatch-board.png) |
+| **All shipments** | **Shipment detail** |
+| ![Admin shipments](package-delivery-web/public/screenshots/32-admin-shipments.png) | ![Admin shipment detail](package-delivery-web/public/screenshots/33-admin-shipment-detail.png) |
+| **Couriers** | **Customers** |
+| ![Couriers](package-delivery-web/public/screenshots/34-admin-couriers.png) | ![Customers](package-delivery-web/public/screenshots/35-admin-customers.png) |
+| **Analytics** | |
+| ![Analytics](package-delivery-web/public/screenshots/36-admin-analytics.png) | |
+
 ## Architecture
 
 Five independent microservices sit behind a YARP API Gateway, each with its own SQL Server database and its own Clean Architecture layering (`Domain` / `Application` / `Infrastructure` / API host). Shared cross-cutting code (Serilog logging, CORS, rate limiting, global exception handling, pagination, role constants, local file storage) lives in `BuildingBlocks`.
